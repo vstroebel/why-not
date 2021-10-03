@@ -3,6 +3,8 @@
 use std::env;
 use clap::{App, Arg, ArgMatches, crate_name, crate_version, crate_description, value_t, ErrorKind};
 use std::io::Write;
+use std::process::exit;
+use atty::Stream;
 
 const BUFF_SIZE: usize = 8192;
 
@@ -104,7 +106,32 @@ fn get_message(matches: &ArgMatches) -> String {
                 message
             })
         }
-        None => "y".to_owned()
+        None => {
+            // Check if stdin is piped from other app
+            if atty::isnt(Stream::Stdin) {
+                let mut message = "".to_owned();
+                let input = std::io::stdin();
+
+                match input.read_line(&mut message) {
+                    Ok(n) => {
+                        if n == 1 {
+                            message.push('y');
+                        } else {
+                            // Remove newline at end of line
+                            message.pop();
+                        }
+                    }
+                    Err(err) => {
+                        eprintln!("{}", err);
+                        exit(1);
+                    }
+                }
+
+                message
+            } else {
+                "y".to_owned()
+            }
+        }
     };
     message
 }
@@ -123,6 +150,6 @@ fn create_clap_app() -> App<'static, 'static> {
             .empty_values(false)
             .help("Maximum number of lines to print"))
         .arg(Arg::with_name(STRING_ARG)
-            .default_value("y")
-            .multiple(true))
+            .multiple(true)
+            .help("String to print. Default: \"y\""))
 }

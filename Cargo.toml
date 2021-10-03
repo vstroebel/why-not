@@ -14,3 +14,4 @@ path = "src/main.rs"
 
 [dependencies]
 clap = "2.33"
+atty = "0.2"
