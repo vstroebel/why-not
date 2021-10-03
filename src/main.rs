@@ -1,29 +1,22 @@
 #![allow(clippy::collapsible_else_if)]
 
-use std::env;
-use clap::{App, Arg, ArgMatches, crate_name, crate_version, crate_description, value_t, ErrorKind};
-use std::io::{Write, Result as IoResult};
-use std::process::exit;
-use atty::Stream;
-use rand::{thread_rng, seq::SliceRandom};
-use rand::rngs::ThreadRng;
+mod source;
+mod config;
+
+use std::io::{Write, Result as IoResult, Error, ErrorKind};
+use rand::{thread_rng, rngs::ThreadRng, seq::SliceRandom};
+use crate::config::Config;
+use crate::source::get_messages;
 
 const BUFF_SIZE: usize = 8192;
 
-const STD_ERR_ARG: &str = "STD_ERR";
-const MAX_ARG: &str = "MAX";
-const RANDOM_ARG: &str = "RANDOM";
-const STRING_ARG: &str = "STRING";
-
 pub fn main() {
-    let app = create_clap_app();
+    let config = Config::load_from_env();
 
-    let matches = app.get_matches();
-
-    let res = if matches.is_present(RANDOM_ARG) {
-        print_random_messages(&matches)
+    let res = if config.random {
+        print_random_messages(&config)
     } else {
-        print_message(&matches)
+        print_message(&config)
     };
 
     if let Err(err) = res {
@@ -31,40 +24,40 @@ pub fn main() {
     }
 }
 
-fn print_message(matches: &ArgMatches) -> IoResult<()> {
-    let message = get_message(matches);
-    let max = get_max_lines(matches);
-    let stderr = matches.is_present(STD_ERR_ARG);
+fn print_message(config: &Config) -> IoResult<()> {
+    let messages = get_messages(config);
 
-    if let Some(max) = max {
-        if stderr {
-            print_max(std::io::stderr(), &message, max)
+    let message = match messages.first() {
+        Some(message) => message.as_str(),
+        None => return Err(Error::new(ErrorKind::Other, "Missing messages".to_owned())),
+    };
+
+    if let Some(max) = config.max_lines {
+        if config.std_err {
+            print_max(std::io::stderr(), message, max)
         } else {
-            print_max(std::io::stdout(), &message, max)
+            print_max(std::io::stdout(), message, max)
         }
     } else {
-        if stderr {
-            print_infinitely(std::io::stderr(), &message)
+        if config.std_err {
+            print_infinitely(std::io::stderr(), message)
         } else {
-            print_infinitely(std::io::stdout(), &message)
+            print_infinitely(std::io::stdout(), message)
         }
     }
 }
 
-fn print_random_messages(matches: &ArgMatches) -> IoResult<()> {
-    let messages = get_random_messages(matches);
-    let max = get_max_lines(matches);
-    let stderr = matches.is_present(STD_ERR_ARG);
-
+fn print_random_messages(config: &Config) -> IoResult<()> {
+    let messages = get_messages(config);
     let mut rng = thread_rng();
 
-    if let Some(max) = max {
+    if let Some(max) = config.max_lines {
         for _ in 0..max {
-            print_random_message(&messages, stderr, &mut rng)?
+            print_random_message(&messages, config.std_err, &mut rng)?
         }
     } else {
         loop {
-            print_random_message(&messages, stderr, &mut rng)?
+            print_random_message(&messages, config.std_err, &mut rng)?
         }
     }
 
@@ -77,17 +70,6 @@ fn print_random_message(messages: &[String], stderr: bool, rng: &mut ThreadRng) 
         writeln!(std::io::stderr(), "{}", message)
     } else {
         writeln!(std::io::stdout(), "{}", message)
-    }
-}
-
-fn get_max_lines(matches: &ArgMatches) -> Option<usize> {
-    match value_t!(matches, MAX_ARG, usize) {
-        Ok(max) => Some(max),
-        Err(err) => if err.kind == ErrorKind::EmptyValue || err.kind == ErrorKind::ArgumentNotFound {
-            None
-        } else {
-            err.exit()
-        },
     }
 }
 
@@ -135,99 +117,4 @@ fn get_buffer(message: &str, max: Option<usize>) -> (String, usize) {
     }
 
     (buffer, total)
-}
-
-fn get_message(matches: &ArgMatches) -> String {
-    let message = match matches.values_of(STRING_ARG) {
-        Some(values) => {
-            values.fold("".to_owned(), |mut message, v| {
-                if !message.is_empty() {
-                    message.push(' ');
-                }
-                message.push_str(v);
-                message
-            })
-        }
-        None => {
-            // Check if stdin is piped from other app
-            if atty::isnt(Stream::Stdin) {
-                let mut message = "".to_owned();
-                let input = std::io::stdin();
-
-                match input.read_line(&mut message) {
-                    Ok(n) => {
-                        if n == 1 {
-                            message.push('y');
-                        } else {
-                            // Remove newline at end of line
-                            message.pop();
-                        }
-                    }
-                    Err(err) => {
-                        eprintln!("{}", err);
-                        exit(1);
-                    }
-                }
-
-                message
-            } else {
-                "y".to_owned()
-            }
-        }
-    };
-    message
-}
-
-fn get_random_messages(matches: &ArgMatches) -> Vec<String> {
-    let message = match matches.values_of(STRING_ARG) {
-        Some(values) => values.map(|s| s.to_owned()).collect(),
-        None => {
-            // Check if stdin is piped from other app
-            if atty::isnt(Stream::Stdin) {
-                let mut message = "".to_owned();
-                let input = std::io::stdin();
-
-                match input.read_line(&mut message) {
-                    Ok(n) => {
-                        if n == 1 {
-                            vec!["y".to_owned(), "n".to_owned()]
-                        } else {
-                            // Remove newline at end of line
-                            message.pop();
-                            message.split(' ').map(|s| s.to_owned()).collect()
-                        }
-                    }
-                    Err(err) => {
-                        eprintln!("{}", err);
-                        exit(1);
-                    }
-                }
-            } else {
-                vec!["y".to_owned(), "n".to_owned()]
-            }
-        }
-    };
-    message
-}
-
-fn create_clap_app() -> App<'static, 'static> {
-    App::new(crate_name!())
-        .version(crate_version!())
-        .about(crate_description!())
-        .arg(Arg::with_name(STD_ERR_ARG)
-            .short("e")
-            .long("stderr")
-            .help("Print to stderr"))
-        .arg(Arg::with_name(MAX_ARG)
-            .short("m")
-            .long("max")
-            .empty_values(false)
-            .help("Maximum number of lines to print"))
-        .arg(Arg::with_name(RANDOM_ARG)
-            .short("r")
-            .long("random")
-            .help("Randomize output strings"))
-        .arg(Arg::with_name(STRING_ARG)
-            .multiple(true)
-            .help("String to print. Default: \"y\""))
 }
