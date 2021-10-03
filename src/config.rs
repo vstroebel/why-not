@@ -1,4 +1,6 @@
-use clap::{App, Arg, ArgMatches, crate_name, crate_version, crate_description, value_t, ErrorKind};
+use clap::{
+    crate_description, crate_name, crate_version, value_t, App, Arg, ArgMatches, ErrorKind,
+};
 
 const STD_ERR_ARG: &str = "STD_ERR";
 const MAX_ARG: &str = "MAX";
@@ -29,22 +31,30 @@ fn create_clap_app() -> App<'static, 'static> {
     App::new(crate_name!())
         .version(crate_version!())
         .about(crate_description!())
-        .arg(Arg::with_name(STD_ERR_ARG)
-            .short("e")
-            .long("stderr")
-            .help("Print to stderr"))
-        .arg(Arg::with_name(MAX_ARG)
-            .short("m")
-            .long("max")
-            .empty_values(false)
-            .help("Maximum number of lines to print"))
-        .arg(Arg::with_name(RANDOM_ARG)
-            .short("r")
-            .long("random")
-            .help("Randomize output strings"))
-        .arg(Arg::with_name(STRING_ARG)
-            .multiple(true)
-            .help("String to print. Default: \"y\""))
+        .arg(
+            Arg::with_name(STD_ERR_ARG)
+                .short("e")
+                .long("stderr")
+                .help("Print to stderr"),
+        )
+        .arg(
+            Arg::with_name(MAX_ARG)
+                .short("m")
+                .long("max")
+                .empty_values(false)
+                .help("Maximum number of lines to print"),
+        )
+        .arg(
+            Arg::with_name(RANDOM_ARG)
+                .short("r")
+                .long("random")
+                .help("Randomize output strings"),
+        )
+        .arg(
+            Arg::with_name(STRING_ARG)
+                .multiple(true)
+                .help("String to print. Default: \"y\""),
+        )
 }
 
 fn use_std_err(matches: &ArgMatches) -> bool {
@@ -58,16 +68,19 @@ fn is_random(matches: &ArgMatches) -> bool {
 fn get_max_lines(matches: &ArgMatches) -> Option<usize> {
     match value_t!(matches, MAX_ARG, usize) {
         Ok(max) => Some(max),
-        Err(err) => if err.kind == ErrorKind::EmptyValue || err.kind == ErrorKind::ArgumentNotFound {
-            None
-        } else {
-            err.exit()
-        },
+        Err(err) => {
+            if err.kind == ErrorKind::EmptyValue || err.kind == ErrorKind::ArgumentNotFound {
+                None
+            } else {
+                err.exit()
+            }
+        }
     }
 }
 
 fn get_strings(matches: &ArgMatches) -> Vec<String> {
-    matches.values_of(STRING_ARG)
+    matches
+        .values_of(STRING_ARG)
         .map(|v| v.map(|v| v.to_owned()).collect())
         .unwrap_or_else(Vec::new)
 }

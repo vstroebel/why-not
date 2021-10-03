@@ -1,12 +1,12 @@
 #![allow(clippy::collapsible_else_if)]
 
-mod source;
 mod config;
+mod source;
 
-use std::io::{Write, Result as IoResult, Error, ErrorKind};
-use rand::{thread_rng, rngs::ThreadRng, seq::SliceRandom};
 use crate::config::Config;
 use crate::source::get_messages;
+use rand::{rngs::ThreadRng, seq::SliceRandom, thread_rng};
+use std::io::{Error, ErrorKind, Result as IoResult, Write};
 
 const BUFF_SIZE: usize = 8192;
 

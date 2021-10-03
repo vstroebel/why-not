@@ -1,5 +1,7 @@
 use std::process::exit;
+
 use atty::Stream;
+
 use crate::config::Config;
 
 pub fn get_messages(config: &Config) -> Vec<String> {
