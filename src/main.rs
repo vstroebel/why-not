@@ -44,29 +44,47 @@ pub fn main() {
 }
 
 fn print_max<W: Write>(mut w: W, message: &str, max: usize) {
-    for _ in 0..max {
+    let (buffer, buff_count) = get_buffer(message, Some(max));
+
+    for _ in 0..max / buff_count {
+        writeln!(w, "{}", buffer);
+    }
+
+    for _ in 0..max % buff_count {
         writeln!(w, "{}", message);
     }
 }
 
 fn print_infinitely<W: Write>(mut w: W, message: &str) {
-    let buffer = get_buffer(message);
+    let (buffer, _) = get_buffer(message, None);
     loop {
         w.write_all(buffer.as_bytes());
     }
 }
 
-fn get_buffer(message: &str) -> String {
+fn get_buffer(message: &str, max: Option<usize>) -> (String, usize) {
+    let mut total = BUFF_SIZE / (message.len() + 1);
+
+    if let Some(max) = max {
+        if max == 0 {
+            return ("".to_owned(), 0);
+        }
+        if total > max {
+            total = max
+        }
+    }
+
     let mut buffer = String::with_capacity(BUFF_SIZE);
 
     buffer.push_str(message);
     buffer.push('\n');
 
-    for _ in 1..(BUFF_SIZE / (message.len() + 1)) {
+    for _ in 1..total {
         buffer.push_str(message);
         buffer.push('\n');
     }
-    buffer
+
+    (buffer, total)
 }
 
 fn get_message(matches: &ArgMatches) -> String {
