@@ -28,37 +28,43 @@ pub fn main() {
 
     let stderr = matches.is_present(STD_ERR_ARG);
 
-    if let Some(max) = max {
+    let res = if let Some(max) = max {
         if stderr {
-            print_max(std::io::stderr(), &message, max);
+            print_max(std::io::stderr(), &message, max)
         } else {
-            print_max(std::io::stdout(), &message, max);
+            print_max(std::io::stdout(), &message, max)
         }
     } else {
         if stderr {
-            print_infinitely(std::io::stderr(), &message);
+            print_infinitely(std::io::stderr(), &message)
         } else {
-            print_infinitely(std::io::stdout(), &message);
+            print_infinitely(std::io::stdout(), &message)
         }
+    };
+
+    if let Err(err) = res {
+        eprintln!("{}", err);
     }
 }
 
-fn print_max<W: Write>(mut w: W, message: &str, max: usize) {
+fn print_max<W: Write>(mut w: W, message: &str, max: usize) -> std::io::Result<()> {
     let (buffer, buff_count) = get_buffer(message, Some(max));
 
     for _ in 0..max / buff_count {
-        writeln!(w, "{}", buffer);
+        writeln!(w, "{}", buffer)?;
     }
 
     for _ in 0..max % buff_count {
-        writeln!(w, "{}", message);
+        writeln!(w, "{}", message)?;
     }
+
+    Ok(())
 }
 
-fn print_infinitely<W: Write>(mut w: W, message: &str) {
+fn print_infinitely<W: Write>(mut w: W, message: &str) -> std::io::Result<()> {
     let (buffer, _) = get_buffer(message, None);
     loop {
-        w.write_all(buffer.as_bytes());
+        w.write_all(buffer.as_bytes())?;
     }
 }
 
