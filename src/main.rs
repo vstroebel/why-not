@@ -69,7 +69,7 @@ fn print_infinitely<W: Write>(mut w: W, message: &str) -> std::io::Result<()> {
 }
 
 fn get_buffer(message: &str, max: Option<usize>) -> (String, usize) {
-    let mut total = BUFF_SIZE / (message.len() + 1);
+    let mut total = (BUFF_SIZE / (message.len() + 1)).max(1);
 
     if let Some(max) = max {
         if max == 0 {
