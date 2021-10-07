@@ -1,6 +1,7 @@
 #![allow(clippy::collapsible_else_if)]
 
 use std::io::{Error, ErrorKind, Result as IoResult};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use rand::{rngs::ThreadRng, seq::SliceRandom, thread_rng};
 
@@ -14,10 +15,16 @@ mod writer;
 
 const BUFF_SIZE: usize = 8192;
 
+static SHUTDOWN: AtomicBool = AtomicBool::new(false);
+
 pub fn main() {
     let config = Config::load_from_env();
 
     let w = Writer::new_from_config(&config);
+
+    if let Err(err) = ctrlc::set_handler(|| SHUTDOWN.store(true, Ordering::Relaxed)) {
+        eprintln!("{}", err);
+    }
 
     let res = if config.random {
         print_random_messages(&config, w)
@@ -26,8 +33,17 @@ pub fn main() {
     };
 
     if let Err(err) = res {
-        eprintln!("{}", err);
+        if !matches!(
+            err.kind(),
+            ErrorKind::BrokenPipe | ErrorKind::UnexpectedEof | ErrorKind::Interrupted
+        ) {
+            eprintln!("{}", err);
+        }
     }
+}
+
+fn shutdown() -> bool {
+    SHUTDOWN.load(Ordering::Relaxed)
 }
 
 fn print_message(config: &Config, mut w: Writer) -> IoResult<()> {
@@ -43,12 +59,15 @@ fn print_message(config: &Config, mut w: Writer) -> IoResult<()> {
     if let Some(max) = config.max_lines {
         for _ in 0..max {
             w.write(&message)?;
+            if shutdown() {
+                break;
+            }
         }
     } else {
         if w.supports_multiple_messages() {
             message = repeat_messages(&message);
         }
-        loop {
+        while !shutdown() {
             w.write(&message)?;
         }
     }
@@ -73,11 +92,14 @@ fn print_random_messages(config: &Config, mut w: Writer) -> IoResult<()> {
 
     if let Some(max) = config.max_lines {
         for _ in 0..max {
-            print_random_message(&messages, &mut w, &mut rng)?
+            print_random_message(&messages, &mut w, &mut rng)?;
+            if shutdown() {
+                break;
+            }
         }
     } else {
-        loop {
-            print_random_message(&messages, &mut w, &mut rng)?
+        while !shutdown() {
+            print_random_message(&messages, &mut w, &mut rng)?;
         }
     }
 
