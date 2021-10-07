@@ -12,6 +12,8 @@ mod config;
 mod source;
 mod writer;
 
+const BUFF_SIZE: usize = 8192;
+
 pub fn main() {
     let config = Config::load_from_env();
 
@@ -36,18 +38,33 @@ fn print_message(config: &Config, mut w: Writer) -> IoResult<()> {
         None => return Err(Error::new(ErrorKind::Other, "Missing messages".to_owned())),
     };
 
-    let message = format!("{}\n", message.to_owned());
+    let mut message = format!("{}\n", message.to_owned());
 
     if let Some(max) = config.max_lines {
         for _ in 0..max {
             w.write(&message)?;
         }
     } else {
+        if w.supports_multiple_messages() {
+            message = repeat_messages(&message);
+        }
         loop {
             w.write(&message)?;
         }
     }
+
     Ok(())
+}
+
+fn repeat_messages(message: &str) -> String {
+    let mut buffer = String::with_capacity(BUFF_SIZE);
+    buffer.push_str(message);
+
+    while buffer.len() + message.len() < BUFF_SIZE {
+        buffer.push_str(message);
+    }
+
+    buffer
 }
 
 fn print_random_messages(config: &Config, mut w: Writer) -> IoResult<()> {

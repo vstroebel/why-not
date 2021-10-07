@@ -36,6 +36,10 @@ impl Writer {
         }
     }
 
+    pub fn supports_multiple_messages(&self) -> bool {
+        matches!(self.color, Color::None | Color::Color(_))
+    }
+
     pub fn write(&mut self, message: &str) -> std::io::Result<()> {
         match self.color {
             Color::None => self.out.write_all(message.as_bytes()),
