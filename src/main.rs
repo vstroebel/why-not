@@ -15,11 +15,7 @@ mod writer;
 pub fn main() {
     let config = Config::load_from_env();
 
-    let w = if config.std_err {
-        Writer::new(std::io::stderr())
-    } else {
-        Writer::new(std::io::stdout())
-    };
+    let w = Writer::new_from_config(&config);
 
     let res = if config.random {
         print_random_messages(&config, w)
@@ -73,6 +69,5 @@ fn print_random_messages(config: &Config, mut w: Writer) -> IoResult<()> {
 
 fn print_random_message(messages: &[String], w: &mut Writer, rng: &mut ThreadRng) -> IoResult<()> {
     let message = messages.choose(rng).map(|m| m.as_str()).unwrap_or("");
-    w.write(message)?;
-    w.write("\n")
+    w.writeln(message)
 }
