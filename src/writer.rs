@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{ErrorKind, Write};
 
 use rand::seq::SliceRandom;
 use rand::{thread_rng, Rng};
@@ -87,7 +87,12 @@ impl Writer {
 impl Drop for Writer {
     fn drop(&mut self) {
         if let Err(err) = self.reset() {
-            eprintln!("{}", err);
+            if !matches!(
+                err.kind(),
+                ErrorKind::BrokenPipe | ErrorKind::UnexpectedEof | ErrorKind::Interrupted
+            ) {
+                eprintln!("{}", err);
+            }
         }
     }
 }
