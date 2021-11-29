@@ -1,6 +1,25 @@
 # **W**h**y** **N**ot
 
-A `yes` clone
+Some kind of `yes` clone
+
+## Usage
+
+```shell
+wyn [FLAGS] [OPTIONS] [STRING]...
+
+FLAGS:
+    -r, --random     Randomize output strings
+    -e, --stderr     Print to stderr
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+OPTIONS:
+    -c, --color <COLOR>    Color to use [possible values: black, blue, green, red, cyan, magenta, yellow, white, random]
+    -m, --max <MAX>        Maximum number of lines to print
+
+ARGS:
+    <STRING>...    String to print. Default: "y"
+```
 
 ## License
 
